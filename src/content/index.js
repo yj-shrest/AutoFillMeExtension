@@ -1,50 +1,24 @@
-import axios from "axios";
+sampleData = {}
+fetch(chrome.runtime.getURL('data.json'))
+  .then((response) => response.json())
+  .then((data) => {
+    console.log('Fetched JSON Data:', data);
+    sampleData = data;
+  })
+  .catch((error) => console.error('Error fetching JSON:', error));
 let currentInputVariable;
-const sampleData = {
-  "first name": "Yujal",
-  "last name": "Shrestha",
-  name: "John Doe",
-  "full name": "Yujal Shrestha",
-  email: "john.doe@example.com",
-  "e-mail address": "john.doe@example.com",
-  "phone number": "9841000000",
-  "mobile number": "9841000000",
-  address: "Kathmandu",
-  comments: "Thank You",
-  "pan number": "123456789",
-};
-const fetchField = async (formUrl) => {
-  try {
-    const response = await axios.get(
-      `http://localhost:8000/scrape?url=${encodeURIComponent(formUrl)}`
-    );
-    return response.data.extractedText;
-  } catch (err) {
-    console.log("Error fetching data from the provided URL.:", err);
-  }
-};
-async function autoFillForm() {
-  const url = window.location.href;
-  console.log("Fill form invoked: URL:", url);
-  // const fields = await fetchField(url);
-  // console.log(fields);
-  let fields =[];
+function autoFillForm() {
   const form = document.querySelector("form");
   const inputs = form.querySelectorAll("input, textarea");
   let filteredInputs = [];
   inputs.forEach((inputElement) => {
     let name = findFieldName(inputElement);
-    if(name[0]!=='<')
-    {
-      fields.push(name);
+    if (name[0] !== "<") {
       filteredInputs.push(inputElement);
     }
-  
-  })
-  console.log(fields);
-
-  filteredInputs.forEach((inputElement,index) => {
-    let name = fields[index];
+  });
+  filteredInputs.forEach((inputElement) => {
+    let name =findFieldName(inputElement)
     if (sampleData[name.toLowerCase()]) {
       inputElement.value = sampleData[name.toLowerCase()];
       inputElement.dispatchEvent(new Event("input", { bubbles: true }));
@@ -59,8 +33,6 @@ async function autoFillForm() {
     }
   });
 }
-
-// Listen for messages from the popup or background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "fillForm") {
     autoFillForm();
@@ -75,6 +47,10 @@ function findFieldName(target) {
   }
   if (currentElement && currentElement.hasAttribute("placeholder")) {
     return currentElement.getAttribute("placeholder");
+  }
+  if (currentElement && currentElement.hasAttribute("id")) {
+    let temp = currentElement.getAttribute("id");
+    return temp.slice(3);
   }
   // Traverse upward through the DOM to find the previous element with text content
   let previousTextElement = null;
@@ -96,116 +72,122 @@ function findFieldName(target) {
       break; // Stop once we find the first element with non-empty text
     }
   }
-  previoustext = previousTextElement.textContent.trim();
+  previousText = previousTextElement.textContent.trim();
   // If a previous element with text is found, log its text content
-  if (previoustext.includes("*")) {
+  if (previousText.includes("*")) {
     // Use the replace method to remove the phrase (with global and case-insensitive flags)
-    previoustext = previoustext.replace(new RegExp("\\*", "gi"), "").trim();
+    previousText = previousText.replace(new RegExp("\\*", "gi"), "").trim();
   }
-  if (previoustext.includes("Your answer")) {
+  if (previousText.includes("Your answer")) {
     // Use the replace method to remove the phrase (with global and case-insensitive flags)
-    previoustext = previoustext
+    previousText = previousText
       .replace(new RegExp("Your answer", "gi"), "")
       .trim();
   }
-  if (previoustext.includes("This is a required question")) {
+  if (previousText.includes("This is a required question")) {
     // Use the replace method to remove the phrase (with global and case-insensitive flags)
-    previoustext = previoustext
+    previousText = previousText
       .replace(new RegExp("This is a required question", "gi"), "")
       .trim();
   }
-  if (previousTextElement) {
-    console.log("Previous element with text content:", previoustext);
-  } else {
-    console.log("No previous element with text content found.");
-  }
-  return previoustext;
+  return previousText;
 }
 
-document.addEventListener('focus', function(event) {
-  // Ensure the event target is an input field (input, textarea, or select)
-  if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT' ) &&isInForm(event.target) ) {
-    if(!event.target.hasAttribute("title") )
-    {
+document.addEventListener(
+  "focus",
+  function (event) {
+    // Ensure the event target is an input field (input, textarea, or select)
+    if (
+      event.target &&
+      (event.target.tagName === "INPUT" ||
+        event.target.tagName === "TEXTAREA" ||
+        event.target.tagName === "SELECT") &&
+      isInForm(event.target)
+    ) {
+      // if (
+      //   event.target.attributes[
+      //     Object.keys(event.target.attributes).find((key, id) => {
+      //       let str = event.target.attributes[id].nodeValue.toLowerCase()
+      //       return str.includes("search")||str.includes("query");
+      //     })
+      //   ]
+      // ) {
+      //   return null;
+      // } 
       currentInputVariable = event.target;
-      let fieldname = findFieldName(event.target);
-      createSuggestionBox(event.target,fieldname);
+      let fieldName = findFieldName(event.target);
+      console.log("create suggestion box:",fieldName);
+        createSuggestionBox(event.target, fieldName);
     }
-    if(event.target.hasAttribute("title") && event.target.getAttribute("title").toLowerCase()!="search")
-    {
-      currentInputVariable = event.target;
-      let fieldname = findFieldName(event.target);
-      createSuggestionBox(event.target,fieldname);
-    }
-  }   
-}, true);  // Use capturing phase to catch focus before it bubbles up
+  },
+  true
+); // Use capturing phase to catch focus before it bubbles up
 
-function createSuggestionBox(inputElement,name) {
+function createSuggestionBox(inputElement, name) {
   // Check if the suggestion box already exists, and remove it
-  let existingBox = document.querySelector('.suggestion-box');
+  let existingBox = document.querySelector(".suggestion-box");
   if (existingBox) {
     existingBox.remove();
   }
 
   // Create a new suggestion box
-  let suggestionBox = document.createElement('div');
-  suggestionBox.className = 'suggestion-box';
-  
-  let suggestion = sampleData[name.toLowerCase()];
-  // Add some sample suggestions
-  let suggestions = [suggestion];
-  let inputFocus = true;
-  // Populate the suggestion box with items
-  suggestions.forEach(suggestion => {
-    let suggestionItem = document.createElement('div');
-    suggestionItem.textContent = suggestion;
-    suggestionItem.classList.add('suggestion-item');
-    suggestionItem.addEventListener('click', function() {
-      // inputFocus = false;
-  
-      console.log("injecting data:",suggestion);
-      // inputElement.focus();
+  let suggestionBox = document.createElement("div");
+  suggestionBox.className = "suggestion-box";
 
+  let suggestion = sampleData[name.toLowerCase()];
+  if(suggestion) {
+    let suggestionItem = document.createElement("div");
+    suggestionItem.textContent = suggestion;
+    suggestionItem.classList.add("suggestion-item");
+    suggestionItem.addEventListener("click", function () {
       currentInputVariable.value = suggestion;
-      currentInputVariable.dispatchEvent(new Event('input', { bubbles: true }));
-     currentInputVariable.dispatchEvent(new Event('change', { bubbles: true }));
+      currentInputVariable.dispatchEvent(new Event("input", { bubbles: true }));
+      currentInputVariable.dispatchEvent(
+        new Event("change", { bubbles: true })
+      );
       currentInputVariable.focus();
-      // document.execCommand('insertText', false, 'Some Answer');
-      suggestionBox.remove(); 
-      currentInputVariable.parentElement.parentElement.parentElement.parentElement.classList.add("CDELXb");
-      currentInputVariable.parentElement.parentElement.parentElement.classList.add("CDELXb");
+      autoFillForm();
+      suggestionBox.remove();
+      currentInputVariable.parentElement.parentElement.parentElement.parentElement.classList.add(
+        "CDELXb"
+      );
+      currentInputVariable.parentElement.parentElement.parentElement.classList.add(
+        "CDELXb"
+      );
     });
     suggestionBox.appendChild(suggestionItem);
-  });
+  };
   let rect = inputElement.getBoundingClientRect();
-  suggestionBox.style.position = 'absolute';
-  suggestionBox.style.left = `${rect.left+ window.scrollX}px`;
-  suggestionBox.style.top = `${rect.top + rect.height + 15+ window.scrollY}px`; // Position below the input field
+  suggestionBox.style.position = "absolute";
+  suggestionBox.style.left = `${rect.left + window.scrollX}px`;
+  suggestionBox.style.top = `${rect.top + rect.height + 15 + window.scrollY}px`; // Position below the input field
   suggestionBox.style.width = `${rect.width}px`; // Match the width of the input field
-  suggestionBox.style.backgroundColor = 'white';
-  suggestionBox.style.border = '1px solid #ccc';
-  suggestionBox.style.boxShadow = '0px 4px 6px rgba(0, 0, 0, 0.1)';
-  suggestionBox.style.zIndex = '1000';
-  
-  // inputElement.addEventListener('blur', function() {
-  //     suggestionBox.remove();
-  // });
-  // Append the suggestion box to the body
+  suggestionBox.style.backgroundColor = "white";
+  suggestionBox.style.border = "1px solid #ccc";
+  suggestionBox.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
+  suggestionBox.style.zIndex = "1000";
+
   document.body.appendChild(suggestionBox);
 
-  // Close the suggestion box when clicking outside of it
-  document.addEventListener('click', function(event) {
-    if (!suggestionBox.contains(event.target) && event.target !== inputElement) {
-      suggestionBox.remove();
-    }
-  }, { });
+  document.addEventListener(
+    "click",
+    function (event) {
+      if (
+        !suggestionBox.contains(event.target) &&
+        event.target !== inputElement
+      ) {
+        suggestionBox.remove();
+      }
+    },
+    {}
+  );
 }
 function isInForm(inputElement) {
   // Check if the input element is valid and belongs to a form
   return inputElement && inputElement.form !== null;
 }
 
-const style = document.createElement('style');
+const style = document.createElement("style");
 style.textContent = `
   .suggestion-box {
     max-height: 150px;
