@@ -89,15 +89,7 @@ We used **Vite** to build this project. If you'd like to make changes to the cod
    npm install
    ```
 
-3. **Run the Development Server**
-
-   To run the extension in development mode, use Vite's development server:
-
-   ```bash
-   npm run dev
-   ```
-
-4. **Build the Extension**
+3. **Build the Extension**
 
    After making changes to the code, you can build the extension by running:
 
